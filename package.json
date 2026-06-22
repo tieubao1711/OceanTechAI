@@ -1,0 +1,50 @@
+{
+  "name": "oceantechai-workspace",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "dev": "next dev --port 3001",
+    "build": "next build",
+    "start": "next start --port 3001",
+    "lint": "next lint",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "db:seed": "prisma db seed",
+    "db:studio": "prisma studio",
+    "e2e:mock": "tsx scripts/e2e-mock-flow.ts",
+    "setup:local": "tsx scripts/setup-local.ts",
+    "self:test": "tsx scripts/self-test-oceantechai.ts",
+    "audit:oceantechai": "tsx scripts/audit-oceantechai.ts",
+    "repair:learning": "tsx scripts/repair-learning-memory.ts",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "postinstall": "prisma generate"
+  },
+  "prisma": {
+    "seed": "tsx prisma/seed.ts"
+  },
+  "dependencies": {
+    "@prisma/client": "^6.9.0",
+    "clsx": "^2.1.1",
+    "next": "^15.3.3",
+    "next-intl": "^4.13.0",
+    "openai": "^4.104.0",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "tailwind-merge": "^3.3.0",
+    "zod": "^3.25.56"
+  },
+  "devDependencies": {
+    "@tailwindcss/postcss": "^4.1.8",
+    "@types/node": "^22.15.29",
+    "@types/react": "^19.1.6",
+    "@types/react-dom": "^19.1.5",
+    "eslint": "^9.28.0",
+    "eslint-config-next": "^15.3.3",
+    "prisma": "^6.9.0",
+    "tailwindcss": "^4.1.8",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3",
+    "vitest": "^3.2.6"
+  }
+}

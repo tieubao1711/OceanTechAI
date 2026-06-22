@@ -1,0 +1,547 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ─── Identity ───────────────────────────────────────────────────────────────
+
+model User {
+  id          String        @id @default(cuid())
+  email       String        @unique
+  name        String
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
+  workspaces  Workspace[]
+  decisions   DecisionLog[]
+}
+
+// ─── Organization ───────────────────────────────────────────────────────────
+
+model Workspace {
+  id          String           @id @default(cuid())
+  name        String
+  description String?
+  ownerId     String
+  owner       User             @relation(fields: [ownerId], references: [id])
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+  projects    Project[]
+  memory      MemoryEntry[]
+  governance  GovernanceRule[]
+}
+
+model Project {
+  id                    String                 @id @default(cuid())
+  name                  String
+  description           String?
+  workspaceId           String
+  workspace             Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+  agents                Agent[]
+  discussions           Discussion[]
+  memory                MemoryEntry[]
+  repositoryIntegration RepositoryIntegration?
+  journals              AgentJournal[]
+  timelineEvents        TimelineEvent[]
+  autonomousSuggestions AutonomousSuggestion[]
+  adrs                  Adr[]
+  improvementCycles     ImprovementCycle[]
+  assignments           ProjectAssignment[]
+  assignmentEvents      ProjectAssignmentEvent[]
+  agentConversations    AgentConversation[]
+}
+
+// ─── Workforce ──────────────────────────────────────────────────────────────
+
+enum Department {
+  PRODUCT
+  ENGINEERING
+  QA
+  SECURITY
+  OPERATIONS
+  RESEARCH
+}
+
+enum AgentRank {
+  INTERN
+  JUNIOR
+  SENIOR
+  LEAD
+  DIRECTOR
+}
+
+enum AgentWorkforceStatus {
+  ACTIVE
+  SUSPENDED
+  RETIRED
+}
+
+enum AvatarType {
+  PIXEL
+  CYBERPUNK
+  FANTASY
+  CORPORATE
+}
+
+// ─── AI Members ─────────────────────────────────────────────────────────────
+
+model Agent {
+  id                String               @id @default(cuid())
+  projectId         String
+  project           Project              @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name              String
+  role              String
+  department        Department           @default(ENGINEERING)
+  title             String?
+  rank              AgentRank            @default(SENIOR)
+  managerAgentId    String?
+  manager           Agent?               @relation("AgentReports", fields: [managerAgentId], references: [id], onDelete: SetNull)
+  reports           Agent[]              @relation("AgentReports")
+  workforceStatus   AgentWorkforceStatus @default(ACTIVE)
+  avatarType        AvatarType           @default(CORPORATE)
+  avatarSeed        String?
+  expertise         String[]
+  systemPrompt      String               @db.Text
+  modelProvider     String               @default("mock")
+  modelName         String               @default("mock-v1")
+  memorySummary     String?              @db.Text
+  toolsAllowed      String[]
+  votingWeight      Float                @default(1.0)
+  isActive          Boolean              @default(true)
+  reputationScore   Float                @default(5.0)
+  acceptedCount     Int                  @default(0)
+  rejectedCount     Int                  @default(0)
+  proposalCount     Int                  @default(0)
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  messages          AgentMessage[]
+  voteRecords       VoteRecord[]
+  journals          AgentJournal[]
+  assignments       ProjectAssignment[]
+  conversations     AgentConversation[]
+}
+
+model AgentConversation {
+  id        String   @id @default(cuid())
+  projectId String
+  agentId   String
+  title     String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project  Project                    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  agent    Agent                      @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages AgentConversationMessage[]
+
+  @@index([projectId])
+  @@index([agentId])
+  @@index([projectId, agentId])
+}
+
+model AgentConversationMessage {
+  id             String   @id @default(cuid())
+  conversationId String
+  role           String
+  content        String   @db.Text
+  tokenInput     Int?
+  tokenOutput    Int?
+  tokenTotal     Int?
+  provider       String?
+  model          String?
+  fallbackUsed   Boolean  @default(false)
+  createdAt      DateTime @default(now())
+
+  conversation AgentConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId])
+}
+
+model ProjectAssignment {
+  id                String   @id @default(cuid())
+  projectId         String
+  project           Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  agentId           String
+  agent             Agent    @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  role              String
+  allocationPercent Int      @default(100)
+  isLead            Boolean  @default(false)
+  assignedAt        DateTime @default(now())
+  assignedBy        String   @default("founder")
+
+  @@unique([projectId, agentId])
+  @@index([agentId])
+  @@index([projectId])
+}
+
+model ProjectAssignmentEvent {
+  id        String   @id @default(cuid())
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  agentId   String
+  type      String
+  message   String
+  createdAt DateTime @default(now())
+
+  @@index([projectId])
+  @@index([agentId])
+  @@index([projectId, createdAt])
+}
+
+// ─── Debate ─────────────────────────────────────────────────────────────────
+
+model Discussion {
+  id            String            @id @default(cuid())
+  projectId     String
+  project       Project           @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userPrompt    String            @db.Text
+  mode          String            @default("normal")
+  status        DiscussionStatus  @default(DRAFT)
+  consensusJson Json?
+  lastError     String?           @db.Text
+  createdAt     DateTime          @default(now())
+  updatedAt     DateTime          @updatedAt
+  rounds        DiscussionRound[]
+  proposal      Proposal?
+  journals      AgentJournal[]
+}
+
+enum DiscussionStatus {
+  DRAFT
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model DiscussionRound {
+  id           String         @id @default(cuid())
+  discussionId String
+  discussion   Discussion     @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  roundNumber  Int
+  roundType    RoundType
+  status       RoundStatus    @default(PENDING)
+  createdAt    DateTime       @default(now())
+  messages     AgentMessage[]
+
+  @@unique([discussionId, roundNumber])
+}
+
+enum RoundType {
+  PROPOSE
+  CRITIQUE
+  REFINE
+  VOTE
+  CONSENSUS
+}
+
+enum RoundStatus {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+model AgentMessage {
+  id                   String          @id @default(cuid())
+  roundId              String
+  round                DiscussionRound @relation(fields: [roundId], references: [id], onDelete: Cascade)
+  agentId              String
+  agent                Agent           @relation(fields: [agentId], references: [id])
+  stance               Stance
+  content              String          @db.Text
+  concerns             String[]
+  suggestions          String[]
+  vote                 VoteValue?
+  votingWeightSnapshot Float?
+  qualityScore         Int?
+  provider             String?
+  model                String?
+  tokenInput           Int?
+  tokenOutput          Int?
+  tokenTotal           Int?
+  fallbackUsed         Boolean         @default(false)
+  createdAt            DateTime        @default(now())
+
+  @@unique([roundId, agentId])
+}
+
+enum Stance {
+  SUPPORT
+  OPPOSE
+  NEUTRAL
+  REFINE
+}
+
+enum VoteValue {
+  YES
+  NO
+  ABSTAIN
+}
+
+// ─── Voting (governance audit) ──────────────────────────────────────────────
+
+model VoteRecord {
+  id           String    @id @default(cuid())
+  discussionId String
+  agentId      String
+  agent        Agent     @relation(fields: [agentId], references: [id])
+  vote         VoteValue
+  weight       Float
+  justification String?  @db.Text
+  createdAt    DateTime  @default(now())
+
+  @@unique([discussionId, agentId])
+}
+
+// ─── Proposals & Execution ──────────────────────────────────────────────────
+
+model Proposal {
+  id                     String         @id @default(cuid())
+  discussionId           String         @unique
+  discussion             Discussion     @relation(fields: [discussionId], references: [id], onDelete: Cascade)
+  title                  String
+  summary                String         @db.Text
+  alternativesConsidered String[]
+  chosenSolution         String         @db.Text
+  reasoning              String[]
+  risks                  String[]
+  filesToCreate          String[]
+  tasksToCreate          String[]
+  voteClassification     String?
+  qualityScore           Int?
+  status                 ProposalStatus @default(PENDING)
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+  generatedFiles         GeneratedFile[]
+  decisionLog            DecisionLog?
+  executionLogs          ExecutionLog[]
+  journals               AgentJournal[]
+}
+
+enum ProposalStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+model GeneratedFile {
+  id         String   @id @default(cuid())
+  proposalId String
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  path       String
+  content    String   @db.Text
+  mimeType   String   @default("text/markdown")
+  createdAt  DateTime @default(now())
+}
+
+model DecisionLog {
+  id         String         @id @default(cuid())
+  proposalId String         @unique
+  proposal   Proposal       @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+  action     DecisionAction
+  decidedBy  String
+  decider    User           @relation(fields: [decidedBy], references: [id])
+  notes      String?        @db.Text
+  decidedAt  DateTime       @default(now())
+}
+
+enum DecisionAction {
+  APPROVED
+  REJECTED
+  CHANGES_REQUESTED
+}
+
+model RepositoryIntegration {
+  id             String   @id @default(cuid())
+  projectId      String   @unique
+  provider       String
+  owner          String
+  repo           String
+  defaultBranch  String   @default("main")
+  installationId String?
+  tokenEncrypted String?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+}
+
+model ExecutionLog {
+  id         String   @id @default(cuid())
+  proposalId String
+  type       String
+  status     String
+  message    String?
+  metadata   Json?
+  createdAt  DateTime @default(now())
+
+  proposal   Proposal @relation(fields: [proposalId], references: [id], onDelete: Cascade)
+
+  @@index([proposalId, type, status])
+}
+
+// ─── Memory ─────────────────────────────────────────────────────────────────
+
+model MemoryEntry {
+  id          String      @id @default(cuid())
+  scope       MemoryScope
+  workspaceId String?
+  workspace   Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  projectId   String?
+  project     Project?    @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  agentRole   String?
+  key         String
+  value       String      @db.Text
+  source      String?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  @@index([scope, workspaceId])
+  @@index([scope, projectId])
+  @@index([scope, agentRole])
+}
+
+enum MemoryScope {
+  GLOBAL
+  WORKSPACE
+  PROJECT
+  AGENT
+  DISCUSSION
+  DECISION
+}
+
+// ─── Governance ───────────────────────────────────────────────────────────────
+
+model GovernanceRule {
+  id          String          @id @default(cuid())
+  workspaceId String?
+  workspace   Workspace?      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  ruleType    GovernanceType
+  key         String
+  value       String          @db.Text
+  isActive    Boolean         @default(true)
+  createdAt   DateTime        @default(now())
+  updatedAt   DateTime        @updatedAt
+
+  @@index([workspaceId, ruleType])
+}
+
+enum GovernanceType {
+  CONSTRAINT
+  PREFERENCE
+  THRESHOLD
+  PROHIBITION
+}
+
+// ─── Phase 2: Self-Improvement Organization ─────────────────────────────────
+
+model Adr {
+  id        String   @id @default(cuid())
+  projectId String
+  number    Int
+  slug      String
+  title     String
+  status    String   @default("ACCEPTED")
+  summary   String?  @db.Text
+  filePath  String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  project   Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  journals  AgentJournal[]
+
+  @@unique([projectId, number])
+  @@index([projectId, status])
+}
+
+model AgentJournal {
+  id           String   @id @default(cuid())
+  agentId      String
+  projectId    String
+  discussionId String?
+  proposalId   String?
+  adrId        String?
+  title        String
+  content      String   @db.Text
+  type         String
+  createdAt    DateTime @default(now())
+
+  agent        Agent       @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  project      Project     @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  discussion   Discussion? @relation(fields: [discussionId], references: [id], onDelete: SetNull)
+  proposal     Proposal?   @relation(fields: [proposalId], references: [id], onDelete: SetNull)
+  adr          Adr?        @relation(fields: [adrId], references: [id], onDelete: SetNull)
+
+  @@index([projectId, type])
+  @@index([discussionId])
+  @@index([proposalId])
+}
+
+model TimelineEvent {
+  id          String   @id @default(cuid())
+  projectId   String
+  title       String
+  description String?  @db.Text
+  eventType   String
+  referenceId String?
+  occurredAt  DateTime @default(now())
+  createdAt   DateTime @default(now())
+
+  project     Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, occurredAt])
+}
+
+model AutonomousSuggestion {
+  id           String   @id @default(cuid())
+  projectId    String
+  title        String
+  reason       String   @db.Text
+  status       String   @default("DRAFT")
+  priority     Int      @default(1)
+  metadata     Json?
+  discussionId String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  project      Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+}
+
+// ─── Phase 2.7: Learning Capture Engine ─────────────────────────────────────
+
+model ImprovementCycle {
+  id                  String                   @id @default(cuid())
+  projectId           String
+  title               String
+  topicKey            String?
+  auditDiscussionId   String?
+  proposalId          String?
+  executionId         String?
+  validationAuditId   String?
+  parentCycleId       String?
+  occurrenceCount     Int                      @default(1)
+  status              ImprovementCycleStatus   @default(OPEN)
+  createdAt           DateTime                 @default(now())
+  verifiedAt          DateTime?
+
+  project             Project                  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+
+  @@index([projectId, status])
+  @@index([projectId, topicKey, status])
+  @@index([proposalId])
+}
+
+enum ImprovementCycleStatus {
+  OPEN
+  IMPLEMENTED
+  VERIFIED
+  FAILED
+}
