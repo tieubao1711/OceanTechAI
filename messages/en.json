@@ -29,7 +29,9 @@
     "lastActivity": "Last activity",
     "language": "Language",
     "english": "English",
-    "vietnamese": "Vietnamese"
+    "vietnamese": "Vietnamese",
+    "buildVersion": "v{version}",
+    "buildVersionLabel": "Application version {version}"
   },
   "status": {
     "COMPLETED": "Completed",

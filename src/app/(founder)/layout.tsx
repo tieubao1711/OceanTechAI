@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { AppFooter } from "@/components/app-footer";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { FounderSidebar } from "@/components/founder-sidebar";
 import { UniversalSearchBar } from "@/components/universal-search-bar";
@@ -35,6 +36,7 @@ export default async function FounderLayout({
           <FounderChatLayout>{children}</FounderChatLayout>
         </div>
       </div>
+      <AppFooter />
     </>
   );
 }
