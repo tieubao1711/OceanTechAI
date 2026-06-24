@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { AppFooter } from "@/components/app-footer";
 import { LanguageSwitcher } from "@/components/language-switcher";
 import { FounderChatLayout } from "@/components/founder-chat-layout";
 
@@ -28,6 +29,7 @@ export default async function ProjectsLayout({
       <main className="mx-auto max-w-6xl px-6 py-8">
         <FounderChatLayout>{children}</FounderChatLayout>
       </main>
+      <AppFooter maxWidthClass="max-w-6xl" />
     </>
   );
 }

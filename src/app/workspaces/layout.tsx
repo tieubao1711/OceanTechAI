@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { getTranslations } from "next-intl/server";
+import { AppFooter } from "@/components/app-footer";
 import { LanguageSwitcher } from "@/components/language-switcher";
 
 export default async function WorkspacesLayout({
@@ -23,6 +24,7 @@ export default async function WorkspacesLayout({
         </div>
       </header>
       <main className="mx-auto max-w-6xl px-6 py-8">{children}</main>
+      <AppFooter maxWidthClass="max-w-6xl" />
     </>
   );
 }

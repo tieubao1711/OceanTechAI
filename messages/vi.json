@@ -29,7 +29,9 @@
     "lastActivity": "Hoạt động gần nhất",
     "language": "Ngôn ngữ",
     "english": "Tiếng Anh",
-    "vietnamese": "Tiếng Việt"
+    "vietnamese": "Tiếng Việt",
+    "buildVersion": "v{version}",
+    "buildVersionLabel": "Phiên bản ứng dụng {version}"
   },
   "status": {
     "COMPLETED": "Hoàn thành",
